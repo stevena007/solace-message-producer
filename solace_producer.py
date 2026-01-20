@@ -21,7 +21,6 @@ from solace.messaging.config.solace_properties import (
     service_properties,
     authentication_properties
 )
-from solace.messaging.config.transport_security_strategy import TLS
 
 
 class MessagePublishFailureListener(PublishFailureListener):
@@ -97,8 +96,11 @@ class SolaceProducer:
         Returns:
             Generated content as string
         """
+        # Buffer for message metadata (timestamp, messageId, etc.)
+        METADATA_BUFFER = 200
+        
         # Generate random text data to fill the message
-        random_text = ''.join(random.choices(string.ascii_letters + string.digits + ' ', k=max(1, size - 200)))
+        random_text = ''.join(random.choices(string.ascii_letters + string.digits + ' ', k=max(1, size - METADATA_BUFFER)))
         
         if content_type.lower() == 'json':
             data = {
@@ -115,7 +117,7 @@ class SolaceProducer:
     <data>{random_text}</data>
 </message>"""
         
-        # Adjust size if needed
+        # Adjust size if needed by adding padding
         if len(content) < size:
             padding = ' ' * (size - len(content))
             if content_type.lower() == 'json':
@@ -123,9 +125,9 @@ class SolaceProducer:
                 content = json.dumps(data, indent=2)
             else:
                 content = content.replace('</message>', f'    <padding>{padding}</padding>\n</message>')
-        elif len(content) > size:
-            # Truncate if too large
-            content = content[:size]
+        
+        # Note: If content is larger than target size, we keep it as-is to avoid
+        # producing malformed JSON/XML. The actual size will be close to the target.
         
         return content
     
